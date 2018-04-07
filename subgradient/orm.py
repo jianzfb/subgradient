@@ -47,30 +47,37 @@ class JSONDict(TypeDecorator):
     return value
 
 
-class Container(Base):
-  __tablename__ = 'container'
+class Order(Base):
+  __tablename__ = 'order'
 
   def __repr__(self):
     return self.container_id
 
   id = Column(Integer, primary_key=True)
   container_id = Column(Unicode(1024), default='')
+  image = Column(Unicode(1024), default='')
+  orderedby = Column(Unicode(1024), default='')
+  supplier = Column(Unicode(1024), default='')
+  order = Column(Unicode(1024), default='')
+
+  cpu_model = Column(Unicode(1024), default='')
   cpu_num = Column(Integer, default=0)
   cpu_mem = Column(Integer, default=0)
+  gpu_model = Column(Unicode(1024), default='')
+  gpu_mem = Column(Integer, default=0)
   gpu_num = Column(Integer, default=0)
-  disk_size = Column(Integer, default=0)
+  gpu = Column(JSONDict)
 
   launch_time = Column(Float, default=0.0)
-  apply_duration = Column(Float, default=0.0)
-  health = Column(Integer, default=0)       # 1: health;
-                                            # 0: no response;
-  status = Column(Integer, default=0)       # 1: running;
-                                            # 0: stop and exit;
-                                            # -1: error and exit;
-                                            # -2: stop and no exit;
-                                            # -3: error and no exit
+  rental_time = Column(Float, default=0.0)
+  health = Column(Integer, default=0)       # 1: normal;
+                                            # 0: abnormal;
+  fee = Column(Float, default=0.0)
+  status = Column(Integer, default=0)       # 1:  running;
+                                            # 0:  stop and exit;
+                                            # -1: error;
+  workspace = Column(Unicode(1024), default='')
   log = Column(LargeBinary, default=None)
-  monitor = Column(JSONDict)
 
 
 def new_session_factory(url="sqlite:///:memory:", reset=False, **kwargs):

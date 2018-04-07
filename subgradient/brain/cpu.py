@@ -9,9 +9,9 @@ import re
 import psutil
 import os
 import platform
-import numpy.distutils.cpuinfo
 import subprocess
 unit = {'b':1, 'k':2**10, 'm':2**20, 'g':2**30}
+
 
 class CPU(object):
   def __init__(self):
@@ -37,14 +37,14 @@ class CPU(object):
     if self._is_linux:
       with open('/proc/cpuinfo') as fd:
         line_content = fd.readline()
-        while line_content.startswith('processor'):
+        while line_content and line_content.startswith('processor'):
           # parse processor basic info
+          model_name = ''
+          logical_cores = 0
+          cpu_mhz = 0
+          core_id = -1
           line_content = fd.readline()
-          while not line_content.startswith('processor'):
-            model_name = ''
-            logical_cores = 0
-            cpu_mhz = 0
-            core_id = -1
+          while line_content and not line_content.startswith('processor'):
             if line_content.startswith('model name'):
               model_name = line_content.split(':')[1].strip()
             elif line_content.startswith('cpu cores'):
@@ -54,13 +54,13 @@ class CPU(object):
             elif line_content.startswith('core id'):
               core_id = int(line_content.split(':')[1].strip())
 
-            if core_id == 0:
-              self._cpu_logical_cores.append(logical_cores)
-              self._cpu_model_name.append(model_name)
-              self._cpu_MHz.append(cpu_mhz)
-
             line_content = fd.readline()
-        self._cpu_physical_cores = len(self._cpu_model_name)
+
+          self._cpu_logical_cores.append(logical_cores)
+          self._cpu_model_name.append(model_name)
+          self._cpu_MHz.append(cpu_mhz)
+          if core_id == 0:
+            self._cpu_physical_cores += 1
     else:
       # only test at macbook pro 2017
       pipe = subprocess.Popen('/usr/sbin/system_profiler SPHardwareDataType', shell=True, stdout=subprocess.PIPE).stdout
@@ -84,7 +84,6 @@ class CPU(object):
           else:
             self._cpu_MHz.append(float(val))
 
-  @property
   def cpu_physical_cores(self):
     return self._cpu_physical_cores
 
@@ -106,19 +105,23 @@ class CPU(object):
 
     return self._cpu_MHz[id]
 
-  @property
-  def available_mem(self):
+  def cpu_available_mem(self):
     # unit GB
     mem = psutil.virtual_memory()
     return (mem.available) / (1024 * 1024 * 1024)
 
-  @property
-  def total_mem(self):
+  def cpu_total_mem(self):
     # unit GB
     mem = psutil.virtual_memory()
     return mem.total / (1024 * 1024 * 1024)
 
-  @property
+  def cpu_util(self, id=-1):
+    cpu_util_perc = psutil.cpu_percent(percpu=True)
+    if id == -1:
+      return cpu_util_perc
+
+    return cpu_util_perc[id]
+
   def available_disk(self):
     # unit GB
     return psutil.disk_usage('/').free / (1024 * 1024 * 1024)
@@ -128,4 +131,4 @@ class CPU(object):
     mem_max = psutil.virtual_memory().total / unit['m']
     mem_usage = p.memory_percent() * 0.01 * mem_max
     cpu_usage = p.cpu_percent(interval=interval)
-    return {'mem_usage': mem_usage, 'cpu_usage': cpu_usage}
+    return {'mem_util': mem_usage, 'cpu_util': cpu_usage}

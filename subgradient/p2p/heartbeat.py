@@ -1,17 +1,17 @@
 # -*- coding: UTF-8 -*-
-# @Time : 29/03/2018
-# @File : chain.py
+# @Time : 07/04/2018
+# @File : heartbeat.py
 # @Author: Jian <jian@mltalker.com>
 from __future__ import division
 from __future__ import unicode_literals
 from __future__ import print_function
+from subgradient.p2p.base import *
 
-class Chain(object):
+class SubgradientHeartbeat(Base):
   def __init__(self):
     pass
 
-  def update(self, resource):
-    return True
+  def process(self, *args, **kwargs):
+    self.write()
+    pass
 
-  def id(self):
-    return ''

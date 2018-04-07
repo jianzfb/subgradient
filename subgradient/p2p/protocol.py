@@ -1,17 +1,20 @@
 # -*- coding: UTF-8 -*-
-# @Time : 29/03/2018
-# @File : chain.py
+# @Time : 07/04/2018
+# @File : protocol.py
 # @Author: Jian <jian@mltalker.com>
 from __future__ import division
 from __future__ import unicode_literals
 from __future__ import print_function
+import subgradient
+import json
 
-class Chain(object):
+class Protocol(object):
   def __init__(self):
     pass
 
-  def update(self, resource):
-    return True
+  @property
+  def version(self):
+    return subgradient.__version__
 
-  def id(self):
+  def serialize(self):
     return ''
