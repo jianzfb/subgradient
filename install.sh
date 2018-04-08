@@ -44,12 +44,12 @@ max_users=8
 dump_folder_size=2
 for((i=1;i<=max_users;i++));do
 dd if=/dev/zero of='user-'${i}'-space.img' bs=1 count=0 seek=${dump_folder_size}G
-mkdir 'virtual-space-'${i}
+mkdir 'user-'${i}'-space'
 mkfs.ext4 -M 'user-'${i}'-space' 'user-'${i}'-space.img' << EOF
 y
 EOF
 sudo mount 'user-'${i}'-space.img' 'user-'${i}'-space' -o loop -t ext4
-sudo chmod 777 'virtual-space-'${i}
+sudo chmod 777 'user-'${i}'-space'
 done;
 
 cd ..

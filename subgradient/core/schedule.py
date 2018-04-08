@@ -7,8 +7,8 @@ from __future__ import unicode_literals
 from __future__ import print_function
 import docker
 from docker.errors import *
-from subgradient.brain.cpu import *
-from subgradient.brain.gpu import *
+from subgradient.core.cpu import *
+from subgradient.core.gpu import *
 from subgradient import orm
 from sqlalchemy import and_,or_
 from traitlets.config import LoggingConfigurable
@@ -37,25 +37,33 @@ class SubgradientSchedule(LoggingConfigurable):
 
   def __init__(self, db, chain, **kwargs):
     super(SubgradientSchedule, self).__init__(**kwargs)
-    self.db = db
+    self._db = db
     self._cpu = CPU()
     self._gpu = GPU()
     self._chain = chain
-    self._subgradient_server = SubgradientServer(db, self.gpu)
+    self._subgradient_server = SubgradientServer(self, **kwargs)
 
     logical_cores_num = len(self.cpu.cpu_logical_cores())
     if self.cpu_quota < 0 or self.cpu_quota > logical_cores_num:
       self.cpu_quota = logical_cores_num
 
-    total_mem = self.cpu.cpu_total_mem()
+    total_mem = int(self.cpu.cpu_total_mem())
     if self.cpu_mem_quota < 0 or self.cpu_mem_quota > total_mem:
       self.cpu_mem_quota = total_mem
-
-    if len(self.gpu_quota) > self.gpu.gpu_physical_cards():
-      self.gpu_quota = [i for i in range(self.gpu.gpu_physical_cards())]
-
-    # TODO: check gpu mem quota
-
+    
+    if self.gpu.is_gpu_ok:
+      if len(self.gpu_quota) == 0 or len(self.gpu_quota) > self.gpu.gpu_physical_cards():
+        self.gpu_quota = [i for i in range(self.gpu.gpu_physical_cards())]
+        # TODO: check gpu mem quota
+        
+    else:
+      self.gpu_quota = []
+      self.gpu_mem_quota = []
+  
+  @property
+  def db(self):
+    return self._db
+  
   @property
   def cpu(self):
     return self._cpu
@@ -126,7 +134,15 @@ class SubgradientSchedule(LoggingConfigurable):
 
     # 2.step check gpu relevant resource
     if not self.gpu.is_gpu_ok:
-      if gpu_model is not None or gpu is not None or gpu_mem is not None:
+      if gpu_model is not None and gpu_model != '':
+        self.log.error('dont support gpu')
+        return False
+      
+      if gpu is not None and gpu > 0:
+        self.log.error('dont support gpu')
+        return False
+      
+      if gpu_mem is not None and gpu_mem > 0:
         self.log.error('dont support gpu')
         return False
 
@@ -309,7 +325,7 @@ class SubgradientSchedule(LoggingConfigurable):
         occupied_workspace.append(workspace_index)
 
       free_workspace = ['user-%d-space'%i for i in range(self.max_tenants) if i not in occupied_workspace]
-      kwargs.update({'workspace': free_workspace[0]})
+      kwargs.update({'workspace': os.path.join(self.workspace, free_workspace[0], 'workspace')})
       status = self.subgradient_server.start(**kwargs)
 
       if status is None:
@@ -320,7 +336,11 @@ class SubgradientSchedule(LoggingConfigurable):
     except:
       self.log.error('couldnt launch subgradient server')
       return False
-
+    
+    container_id = status['container_id']
+    self.subgradient_server.monitor(container_id=container_id)
+    self.subgradient_server.stop(container_id=container_id)
+    
     # 3.step write to blockchain
     s = self.chain.update({
       'type':         'computing',
@@ -334,67 +354,77 @@ class SubgradientSchedule(LoggingConfigurable):
       'health':       1,
       'status':       'running',
       'content': {'cpu_model': kwargs['cpu_model'],
-                  'cpu': kwargs['cpu_num'],
+                  'cpu': kwargs['cpu'],
                   'cpu_mem': kwargs['cpu_mem'],
                   'gpu_model': kwargs['gpu_model'],
-                  'gpu': kwargs['gpu_num'],
+                  'gpu': kwargs['gpu'],
                   'gpu_mem': kwargs['gpu_mem']}
     })
     return s
 
 
-class SubgradientServer(object):
-  def __init__(self, db, gpu):
-    self.client = docker.from_env()
+class SubgradientServer(LoggingConfigurable):
+  def __init__(self, schedule, **kwargs):
+    super(SubgradientServer, self).__init__(**kwargs)
+    self.client = docker.from_env(version='auto')
     self.client_api = self.client.api
-    self.db = db
-    self.gpu = gpu
-
+    self.schedule = schedule
+  
+  @property
+  def cpu(self):
+    return self.schedule.cpu
+    
+  @property
+  def gpu(self):
+    return self.schedule.gpu
+  
+  @property
+  def db(self):
+    return self.schedule.db
+    
   def start(self, *args, **kwargs):
     # 1.step prepare workspace
     # 1.1.step look up valid workspace and clean up
     workspace = kwargs['workspace']
     if os.path.exists(workspace):
       shutil.rmtree(workspace)
-      os.makedirs(workspace)
-
+    
+    os.makedirs(workspace)
+    
     # 1.2.step release dependent files
-    if not os.path.exists(os.path.join(workspace, 'workspace')):
-      os.makedirs(os.path.join(workspace, 'workspace'))
-
     if 'tar' not in kwargs:
       self.log.error('code file not included in request')
       return None
 
-    with open(os.path.join(workspace, 'workspace', 'code.tar.gz'), 'w') as fp:
+    with open(os.path.join(workspace, 'code.tar.gz'), 'wb') as fp:
       fp.write(kwargs['tar'])
 
-    with tarfile.open(os.path.join(workspace, 'workspace', 'code.tar.gz'), 'r:gz') as tar:
-      tar.extractall(os.path.join(workspace, 'workspace'))
+    with tarfile.open(os.path.join(workspace, 'code.tar.gz'), 'r:gz') as tar:
+      tar.extractall(workspace)
 
     # clear tar.gz file
-    os.remove(os.path.join(workspace, 'workspace', 'code.tar.gz'))
+    os.remove(os.path.join(workspace, 'code.tar.gz'))
 
     # 2.step pull or build image
     # 2.1.step build image
     image_name = None
     if 'Dockerfile' in kwargs and kwargs['Dockerfile'] != '':
-      with open(os.path.join(workspace, 'workspace', 'Dockerfile'), 'w') as fp:
+      with open(os.path.join(workspace, 'Dockerfile'), 'w') as fp:
         fp.write(kwargs['Dockerfile'])
       start = time.time()
       # build custom image
       image_name = str(uuid.uuid4())
-      dockerfile_where = os.path.join(workspace, 'workspace')
-      self.client_api.images.build(path=dockerfile_where, rm=True, tag=image_name)
+      self.client_api.images.build(path=workspace, rm=True, tag=image_name)
       elapsed_time = time.time() - start
 
       self.log.info('elapsed %0.2fs to build custom image %s'%(elapsed_time, image_name))
 
     if image_name is None:
-      image_name = 'subgradient/%s'%kwargs['platform']
+      # image_name = 'subgradient/%s'%kwargs['platform']
+      image_name = 'ubuntu'
       # 2.2.step pull image
       start = time.time()
-      self.client_api.images.pull(image_name, insecure_registry=True)
+      self.client_api.pull(image_name, tag='latest')
       elapsed_time = time.time() - start
 
       self.log.info('elapsed %0.2fs to pull standard image %s'%(elapsed_time, image_name))
@@ -405,8 +435,7 @@ class SubgradientServer(object):
 
     # 3.2.step volume map
     working_dir = '/home/workspace'
-    volumes_binds = {os.path.join(workspace, 'workspace'):
-                       {'bind': working_dir, 'mode': 'rw'}}
+    volumes_binds = {workspace: {'bind': working_dir, 'mode': 'rw'}}
 
     # 3.3.step host config
     host_config = {}
@@ -416,6 +445,7 @@ class SubgradientServer(object):
     host_config['port_bindings'] = {5001: 5001}
 
     # 3.4.step gpu config
+    free_gpu = []
     if 'gpu' in kwargs and int(kwargs['gpu']) > 0:
       processing_orders = \
         self.db.query(orm.Order).filter(orm.Order.status == 1).all()
@@ -425,7 +455,7 @@ class SubgradientServer(object):
         if cc.gpu_num > 0:
           occupied_gpu.extend(cc.gpu['cards'])
 
-      free_gpu = [card_i for card_i in self.gpu_quota if card_i not in occupied_gpu]
+      free_gpu = [card_i for card_i in self.schedule.gpu_quota if card_i not in occupied_gpu]
 
       gpu_devices = ['/dev/nvidiactl',
                      '/dev/nvidia-uvm']
@@ -443,13 +473,15 @@ class SubgradientServer(object):
 
     if 'binds' in host_config:
       host_config['binds'].update(volumes_binds)
-
-    host_config = self.client_api.create_host_config(host_config)
+    else:
+      host_config['binds'] = volumes_binds
 
     volumes = []
     for _, volume_bind in host_config['binds'].items():
       volumes.append(volume_bind['bind'])
-
+    
+    host_config = self.client_api.create_host_config(**host_config)
+    
     # 4.step start container
     start = time.time()
     container = self.client_api.create_container(image_name,
@@ -471,14 +503,19 @@ class SubgradientServer(object):
                                       cpu_model=kwargs['cpu_model'],
                                       cpu_num=kwargs['cpu'],
                                       cpu_mem=kwargs['cpu_mem'],
-                                      gpu_model=kwargs['gpu_model'],
-                                      gpu_num=kwargs['gpu'],
                                       launch_time=launch_time,
                                       fee=kwargs['fee'],
                                       health=1,
                                       status=1,
-                                      rental_time=kwargs['rental_time'])
-    subgradient_container.gpu = {'cards': free_gpu[:kwargs['gpu']]}
+                                      rental_time=kwargs['rental_time'],
+                                      workspace=workspace)
+    
+    if self.gpu.is_gpu_ok:
+      subgradient_container.gpu = {'cards': free_gpu[:kwargs['gpu']]}
+      subgradient_container.gpu_model = self.gpu.gpu_model_name(free_gpu[0])
+      subgradient_container.gpu_num = kwargs['gpu']
+      subgradient_container.gpu_mem = self.gpu.gpu_total_mem(free_gpu[0])
+      
     self.db.add(subgradient_container)
     self.db.commit()
 
@@ -486,23 +523,17 @@ class SubgradientServer(object):
 
   def stop(self, *args, **kwargs):
     container_id = kwargs['container_id']
-    container = self.client_api.containers.get(container_id)
-    if container is not None:
+    order = self.db.query(orm.Order).filter(orm.Order.container_id == container_id).one_or_none()
+    if order is not None:
       try:
-        container.stop()
-        order = self.db.query(orm.Order).filter(orm.Order.container_id == container_id).one_or_none()
-        if order is not None:
-          order.status = 0
-          self.db.commit()
-        return True
+        res = self.client_api.stop(container_id)
+        order.status = 0
+        self.db.commit()
       except:
-        order = self.db.query(orm.Order).filter(orm.Order.container_id == container_id).one_or_none()
-        if order is not None:
-          order.status = -1
-          self.db.commit()
-        return False
-    else:
-      return False
+        order.status = -1
+        self.db.commit()
+
+    return True
 
   def monitor(self, *args, **kwargs):
     try:
@@ -522,11 +553,11 @@ class SubgradientServer(object):
       return None
 
 def tar_hirarchy_folder(ff, hirarchy_folder, tar):
-  if os.path.isfile(os.path.join('/Users/jian/Downloads/work', hirarchy_folder, ff)):
-    tar.add(os.path.join('/Users/jian/Downloads/work', hirarchy_folder, ff),
+  if os.path.isfile(os.path.join('/home/mi/mio', hirarchy_folder, ff)):
+    tar.add(os.path.join('/home/mi/mio', hirarchy_folder, ff),
             arcname=os.path.join(hirarchy_folder, ff))
   else:
-    for f in os.listdir(os.path.join('/Users/jian/Downloads/work', ff)):
+    for f in os.listdir(os.path.join('/home/mi/mio', ff)):
       if f[0] == '.':
         continue
 
@@ -540,36 +571,40 @@ if __name__ == '__main__':
   # client.containers.run()
   # client.api.create_host_config()
   # client.api.create_container()
-  # all_files = os.listdir('/Users/jian/Downloads/work')
-  #
-  # tar = tarfile.open('/Users/jian/Downloads/work/mm.tar.gz', 'w:gz')
-  # for file in all_files:
-  #   if file[0] == '.':
-  #     continue
-  #
-  #   if os.path.isfile(os.path.join('/Users/jian/Downloads/work', file)):
-  #     tar.add(os.path.join('/Users/jian/Downloads/work', file), arcname=file)
-  #   else:
-  #     tar_hirarchy_folder(file, '', tar)
-  #
-  # tar.close()
+  all_files = os.listdir('/home/mi/mio')
 
-  content = ''
-  with open('/Users/jian/Downloads/wwww/mm.tar.gz', 'r') as fp:
-    content = fp.read()
+  tar = tarfile.open('/home/mi/mio/mm.tar.gz', 'w:gz')
+  for file in all_files:
+    if file[0] == '.':
+      continue
 
-  db = scoped_session(orm.new_session_factory())()
-  chain = Chain()
-  ss = SubgradientSchedule(db,chain)
-  ss.schedule(cpu_model=None,
-              cpu_num=1,
-              cpu_mem=1,
-              gpu_model=None,
-              gpu_num=0,
-              gpu_mem=0,
-              Dockerfile='',
-              tar=content,
-              cmd='sleep 10000',
-              platform='tensorflow',
-              fee=0.0,
-              rental_time=10)
+    if os.path.isfile(os.path.join('/home/mi/mio', file)):
+      tar.add(os.path.join('/home/mi/mio', file), arcname=file)
+    else:
+      tar_hirarchy_folder(file, '', tar)
+
+  tar.close()
+
+  # content = ''
+  # with open('/home/mi/mio/mm.tar.gz', 'rb') as fp:
+  #   content = fp.read()
+  #
+  # db = scoped_session(orm.new_session_factory())()
+  # chain = Chain()
+  # ss = SubgradientSchedule(db,chain)
+  # ss.schedule(cpu_model=None,
+  #             cpu=1,
+  #             cpu_mem=1,
+  #             gpu_model=None,
+  #             gpu=0,
+  #             gpu_mem=0,
+  #             Dockerfile='',
+  #             tar=content,
+  #             cmd='sleep 10000',
+  #             platform='tensorflow',
+  #             fee=0.0,
+  #             rental_time=10,
+  #             order='xxx',
+  #             orderedby='bbb',
+  #             supplier='ccc',
+  # )

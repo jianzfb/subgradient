@@ -10,7 +10,7 @@ import signal
 import subgradient
 from traitlets.config import Application, catch_config_error
 from traitlets import Unicode
-from subgradient.brain.schedule import *
+from subgradient.core.schedule import *
 from traitlets import Dict
 
 aliases = {
