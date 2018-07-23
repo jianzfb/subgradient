@@ -11,7 +11,7 @@ Installation
 ----------------------
 download install script::
 
-    wget -q https://raw.githubusercontent.com/ipfs/install-go-ipfs/master/install-ipfs.sh
+    wget -q https://raw.githubusercontent.com/jianzfb/subgradient/master/install-subgradient.sh
     chmod +x install-subgradient.sh
     ./install-subgradient.sh
 
