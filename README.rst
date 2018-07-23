@@ -15,7 +15,6 @@ download install script::
     chmod +x install-subgradient.sh
     ./install-subgradient.sh
 
-
 Quick Example
 -----------------------
 on terminal::
