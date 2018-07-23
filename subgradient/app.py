@@ -217,20 +217,20 @@ class Subgradient(Application):
     atexit.register(self.atexit)
     self.init_signal()
 
-    # 9.step start listening
-    # 9.1.step rpc
+    # 8.step start listening
+    # 8.1.step rpc
     reactor.listenTCP(int(self.rpc_port), Site(RPC()))
 
-    # 9.2.step web
+    # 8.2.step web
     reactor.listenTCP(int(self.web_port), Site(web_handlers()))
 
-    # 9.3.step ssh
+    # 8.3.step ssh
     reactor.listenTCP(int(self.ssh_port), ProxySSHFactory())
 
-    # 9.4.step io
+    # 8.4.step io
     stdio.StandardIO(CLI())
 
-    # 10.step launch lcx (shootback nat)
+    # 9.step launch lcx (shootback nat)
     if self.support_shootback:
       process = Process(target=launch_shootback_proxy, args=('127.0.0.1:%d'%self.ssh_port, 'ssh'))
       process.daemon = True
@@ -240,7 +240,7 @@ class Subgradient(Application):
       process.daemon = True
       process.start()
 
-    # 11.step running forever
+    # 10.step running forever
     reactor.run()
 
   def write_config_file(self):

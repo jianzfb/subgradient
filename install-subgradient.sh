@@ -24,13 +24,9 @@ is_ubuntu=$?
 if [ ${is_ubuntu} -ne 0 ]; then
 	os_version='Ubuntu'
 fi
-is_in "${os_info}" "Debian"
-is_debian=$?
-if [ ${is_debian} -ne 0 ]; then
-	os_version='Debian'
-fi
+
 if [ ${os_version} = '' ]; then
-	echo 'subgradient only support Centos, Ubuntu, and Debian'
+	echo 'subgradient only support Centos and Ubuntu'
 	exit 1
 fi
 
@@ -44,8 +40,16 @@ fi
 # 3.step download and install docker
 # 3.1.step install docker
 if [ ${os_version} = 'Ubuntu' ]; then
+    sudo apt-get remove docker docker-engine docker.io
     sudo apt-get update
-    sudo apt-get install -y docker.io
+    sudo apt-get install \
+        linux-image-extra-$(uname -r) \
+        linux-image-extra-virtual
+
+    sudo apt-get update
+    sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
+
+
 fi
 if [ ${os_version} = 'Centos' ]; then
     yum -y install docker-io

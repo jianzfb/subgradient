@@ -69,6 +69,9 @@ def shell():
 
     disk_read_speed = np.mean(disk_read_speed)
 
+    if os.path.exists('test.out'):
+      os.remove('test.out')
+
     return {'read': (disk_read_speed, disk_read_speed_unit),
             'write': (disk_write_speed, disk_write_speed_unit)}
   else:
