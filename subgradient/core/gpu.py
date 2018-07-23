@@ -19,19 +19,20 @@ class GPU(object):
 
       self._is_gpu_ok = True
       self._driver_version = re.findall('(?<=Driver Version: )[\d.]+', content)[0]
-      gpu_cards_basic_info = re.findall('(?<=\|)[ ]+\d+%[ ]+\d+C[]+\w+\d+W / /d+W[ ]+(?=\|)', content)
+      gpu_cards_basic_info = re.findall('(?<=\|)[ ]+\d+[ ]+\w+[ ]+\w+[ ]+On[ ]+(?=\|)', content)
       gpu_num = len(gpu_cards_basic_info)
       self._gpu_cards = []
       for gpu_index in range(gpu_num):
         result = re.split('\s+', gpu_cards_basic_info[gpu_index].strip())
-        self._gpu_cards.append(result[2])
+        gpu_card_str = ' '.join(result[1:-1])
+        self._gpu_cards.append(gpu_card_str)
 
       gpu_mem_info = re.findall('\d+MiB / \d+MiB', content)
       self._gpu_mem_max = []
       for gpu_index in range(gpu_num):
         result = re.split('/', gpu_mem_info[gpu_index])
         mem_max = re.findall('\d+', result[1])[0]
-        self._gpu_mem_max.append(float(mem_max) / 1024)
+        self._gpu_mem_max.append(int(float(mem_max) / 1000))
     except:
         self._is_gpu_ok = False
 
@@ -82,7 +83,7 @@ class GPU(object):
       for gpu_index in range(self.gpu_physical_cards()):
         result = re.split('/', gpu_mem_info[gpu_index])
         mem_usage = re.findall('\d+', result[0])[0]
-        gpu_mem_usage.append(float(mem_usage) / 1024)
+        gpu_mem_usage.append(int(float(mem_usage) / 1000))
 
       if card_id == -1:
         return gpu_mem_usage

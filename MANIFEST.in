@@ -1,0 +1,4 @@
+include subgradient/docker/*/*
+include subgradient/resource/static/*/*
+include subgradient/resource/templates/*
+include install-subgradient.sh

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SUBGRADIENT 管理服务</title>
+    <script src='/static/js/common.js'></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ=" crossorigin="anonymous"></script>
+    <script src="https://cdn.bootcss.com/jquery.form/4.2.2/jquery.form.min.js"></script>
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel = "stylesheet">
+    <link href="/static/css/bootstrap-switch.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-select.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="/static/js/bootstrap-switch.min.js"></script>
+    <script src="/static/js/bootstrap-select.min.js"></script>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.12.1/bootstrap-table.min.css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.12.1/bootstrap-table.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.12.1/locale/bootstrap-table-zh-CN.min.js"></script>
+    <style>
+    .banner {
+        background: url(/static/image/background-banner.png)no-repeat;
+        min-height: 300px;
+        background-size: cover;
+        position: relative;
+    }
+    .btn-white-to-blue:hover{
+        color: #20BEFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #FFF;
+    }
+    .btn-white-to-blue:active{
+        color: #20BEFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #FFF;
+    }
+
+    .btn-white-to-blue:focus{
+        color: #20BEFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #FFF;
+    }
+    .btn-white-to-blue:visited{
+        color: #20BEFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #FFF;
+    }
+    .btn-blue-to-white{
+        -webkit-box-flex: 0;
+        -webkit-flex: 0 0 auto;
+        -ms-flex: 0 0 auto;
+        flex: 0 0 auto;
+        font-family: 'Atlas Grotesk',sans-serif;
+        font-weight: bolder;
+        text-decoration: none;
+        border-radius: 4px;
+        cursor: pointer;
+        letter-spacing:0px;
+        text-align: center;
+
+        color: #20BEFF;
+        border: 1px solid #20BEFF;
+        background-color: #FFF;
+    }
+
+    .btn-blue-to-white:hover{
+        color: #FFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #20BEFF;
+    }
+    .btn-blue-to-white:active{
+        color: #FFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #20BEFF;
+    }
+    .btn-blue-to-white:focus{
+        color: #FFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #20BEFF;
+    }
+    .btn-blue-to-white:visited{
+        color: #FFF;
+        text-decoration: none;
+        border: 1px solid #20BEFF;
+        background-color: #20BEFF;
+    }
+    .table-center{
+
+    }
+    .table-center td{
+        text-align: center;
+    }
+    .table-center th{
+        text-align: center;
+    }
+    .table-center .stock_fee_text{
+        border-radius: 4px;
+        border: 1px solid transparent;
+        border-color: #ccc;
+        padding: 6px 12px;
+        width: 100px;
+    }
+
+    .selectpicker{
+        width: 40px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        height: 34px;
+    }
+    .fa-hover a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    color: #222;
+    line-height: 32px;
+    height: 32px;
+    padding-left: 10px;
+    border-radius: 4px;
+}
+        .fa-hover a .fa {
+    width: 32px;
+    font-size: 14px;
+    display: inline-block;
+    text-align: inherit;
+    margin-right: 10px;
+}
+.fa-hover a img{
+    width: 25px;
+    height: 25px;
+    margin-right: 10px;
+    display: inline-block;
+    text-align: right;
+}
+.banner-main{
+    margin-top: 100px;
+}
+.bootstrap-switch .bootstrap-switch-handle-on.bootstrap-switch-primary {
+    color: #fff;
+    background: #20BEFF;
+}
+.wqd-text-article2 {
+    font-size: 16px !important;
+    font-size: 1.6rem !important;
+    line-height: 1.75;
+    color: #fff;
+}
+    </style>
+
+    <script>
+        var custom_new_add_stock_items = 0;
+        var stock_items_offset = 0;
+
+        $(document).ready(function(){
+            $('#stock_resource').find('table tbody tr').each(function(i){
+                stock_items_offset += 1;
+            })
+
+            $('a[name=add_stock]').on('click', function(){
+                var stock_item = $('<tr><td>-</td></tr>')
+                // input cpu number
+                var cpu_num_selectpicker = $('<select name="cpu_num" class="selectpicker"></select>')
+                {%for cpu_select in hardware.cpu_select%}
+                cpu_num_selectpicker.append('<option>{0}</option>'.format("{{cpu_select}}"))
+                {%endfor%}
+                var cpu_num_select_td = $('<td></td>')
+                cpu_num_select_td.append(cpu_num_selectpicker)
+                stock_item.append(cpu_num_select_td)
+                // input memory
+                var cpu_mem_selectpicker = $('<select name="cpu_mem" class="selectpicker"></select>')
+                {%for cpu_mem_select in hardware.mem_select%}
+                cpu_mem_selectpicker.append('<option>{0}</option>'.format("{{cpu_mem_select}}"))
+                {%endfor%}
+                var cpu_mem_select_td = $('<td></td>')
+                cpu_mem_select_td.append(cpu_mem_selectpicker)
+                stock_item.append(cpu_mem_select_td)
+                // gpu number
+                var gpu_num_selectpicker = $('<select name="gpu_num" class="selectpicker"></select>')
+                {%for gpu_select in hardware.gpu_select%}
+                gpu_num_selectpicker.append('<option>{0}</option>'.format("{{gpu_select}}"))
+                {%endfor%}
+                var gpu_num_select_td = $('<td></td>')
+                gpu_num_select_td.append(gpu_num_selectpicker)
+                stock_item.append(gpu_num_select_td)
+                // gpu memory
+                var gpu_mem_selectpicker = $('<select name="gpu_mem" class="selectpicker"></select>')
+                {%for gpu_mem_select in hardware.gpu_mem_select%}
+                gpu_mem_selectpicker.append('<option>{0}</option>'.format("{{gpu_mem_select}}"))
+                {%endfor%}
+                var gpu_mem_select_td = $('<td></td>')
+                gpu_mem_select_td.append(gpu_mem_selectpicker)
+                stock_item.append(gpu_mem_select_td)
+                // disk size
+                var disk_selectpicker = $('<select name="disk" class="selectpicker"></select>')
+                {%for disk_select in hardware.disk_select%}
+                disk_selectpicker.append('<option>{0}</option>'.format("{{disk_select}}"))
+                {%endfor%}
+                var disk_select_td = $('<td></td>')
+                disk_select_td.append(disk_selectpicker)
+                stock_item.append(disk_select_td)
+                // fee
+                stock_item.append($('<td><input class="stock_fee_text" type="text" placeholder="费用"></td>'))
+                // charge unit
+                stock_item.append($('<td><select name="charge_unit" class="selectpicker"><option>小时</option></select></td>'))
+                // min rental time
+                stock_item.append($('<td><select name="min_rental" class="selectpicker"><option>1</option><option>2</option><option>4</option><option>8</option><option>12</option><option>24</option></select></td>'))
+                // max rental time
+                stock_item.append($('<td><select name="max_rental" class="selectpicker"><option>24</option><option>48</option><option>72</option><option>96</option><option>120</option><option>144</option><option>168</option><option>336</option><option>504</option><option>672</option></select></td>'))
+                // status
+                var status_switch = $('<td><input type="checkbox" checked></td>')
+                var status_switch_div = status_switch.find('input').wrap('<div class="switch" />')
+                status_switch_div.bootstrapSwitch({
+                    size: "mini",
+                    state: false,
+                    animate: "true",
+                    onSwitchChange: function(event,data){
+                        if(data == false){
+                            return
+                        }
+
+                        // collect stock resource
+                        var sss = $(this).parent().parent().parent().parent().parent();
+                        var cpu_number = sss.find('select[name=cpu_num]').val()
+
+                        //memory
+                        var memory = sss.find('select[name=cpu_mem]').val()
+
+                        //GPU 个数
+                        var gpu_number = sss.find('select[name=gpu_num]').val()
+
+                        //GPU 显存
+                        var gpu_memory = sss.find('select[name=gpu_mem]').val()
+
+                        //磁盘大小
+                        var disk_size = sss.find('select[name=disk]').val()
+
+                        //费用
+                        var fee = sss.find('td:eq({0}) input'.format(6)).val()
+                        if(!is_float(fee)){
+                            alert('费用设置有问题，必须为浮点数')
+                            status_switch_div.bootstrapSwitch('state', false)
+                            return
+                        }
+
+                        //计费单位
+                        var charge_unit = sss.find('select[name=charge_unit]').val()
+
+                        //最短租赁时间
+                        var min_rental_time = sss.find('select[name=min_rental]').val()
+
+                        //最长租赁时间
+                        var max_rental_time = sss.find('select[name=max_rental]').val()
+
+                        $.post('/api/update_stock',{
+                            'cpu_num': cpu_number,
+                            'memory': memory,
+                            'gpu_num': gpu_number,
+                            'gpu_memory': gpu_memory,
+                            'disk_size': disk_size,
+                            'fee': fee,
+                            'charge_unit': charge_unit,
+                            'min_rental_time': min_rental_time,
+                            'max_rental_time': max_rental_time},
+                            function(data,status){
+                                if(status=='success'){
+                                    status_switch_div.bootstrapSwitch('disabled', true, true)
+                                }
+                                else{
+                                    status_switch_div.bootstrapSwitch('state', false)
+                                }
+                        })
+                    }})
+
+                stock_item.append(status_switch)
+                $('#stock_resource').find('table tbody').append(stock_item)
+                custom_new_add_stock_items += 1;
+            })
+            $('a[name=del_stock]').on('click', function(){
+                if(custom_new_add_stock_items > 0){
+                    $('#stock_resource').find('table tbody tr:last').remove();
+                    custom_new_add_stock_items -= 1;
+                }
+            })
+
+            //////////////////////////////////////////////////////////////////////
+            function AddFunctionAlty(value, row, index){
+                if(value == 'build'){
+                    return('<a href="javascript:void(0)" id="build"><span class="badge btn-blue-to-white">构建</span></a>')
+                }
+                else{
+                    return('<span class="badge">-</span>')
+                }
+            }
+            window.operateEvents = {
+                'click #build': function(e, value, row, index){
+                    var me = $(this);
+                    $.post('/api/buildimage', {'ID': row['ID']}, function(result, status){
+                        if(status == 'success'){
+                            var response = eval('('+result+')');
+                            if(response['result'] == 'fail'){
+                                alert('image is '+response['reason'])
+                            }
+                            else{
+                                var hh = me.parent()
+                                hh.empty()
+                                hh.append($('<span class="badge">-</span>'))
+                            }
+                        }
+                    })
+                },
+                'click #configdataset': function(e, value, row, index){
+                    var me = $(this);
+                    $.post('/api/dataset_check', {'DATASET': row['DATASET']}, function(result, status){
+                        // 必须下载完数据集文件后，方可执行
+                        // 修改当前数据集状态（支持or -）
+                        var parent = $('#configdataset').parent();
+                        parent.empty()
+                        parent.append($('<span class="badge">配置</span>'))
+                    })
+                }
+            }
+
+            $('#dockerfile_table').bootstrapTable({
+                url: '/api/dockerfile_list',
+                method: 'GET',
+                striped: true,
+                pagination: true, //分页
+                pageNumber: 1,//如果设置了分页，首页页码
+                pageSize: 5,//如果设置了分页，页面数据条数
+                pageList: [10, 20, 30, 40],  //如果设置了分页，设置可供选择的页面数据条数。设置为All 则显示所有记录。
+                paginationPreText: '‹',//指定分页条中上一页按钮的图标或文字,这里是<
+                paginationNextText: '›',//指定分页条中下一页按钮的图标或文字,这里是>
+                data_local: "zh-US",//表格汉化
+                sidePagination: "server", //服务端处理分页
+                queryParams: function (params) {//自定义参数，这里的参数是传给后台的，我这是是分页用的
+                    return {//这里的params是table提供的
+                        cp: params.offset,//从数据库第几条记录开始
+                        ps: params.limit//找多少条
+                    };
+                },
+                columns: [{
+                    field: 'INDEX',
+                    title: '索引',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'IMAGE',
+                    title: '镜像名称',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'OS_PLATFORM',
+                    title: '操作系统',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'OS_VERSION',
+                    title: '版本',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'SOFTWARE_FRAMEWORK',
+                    title: '软件框架',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'GPU',
+                    title: '支持GPU',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'HOT',
+                    title: '热度',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'STATUS',
+                    title: '状态',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'OPERATOR',
+                    title: '操作',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center',
+                    events: operateEvents,
+                    formatter: AddFunctionAlty,
+                },{
+                    field: 'ID',
+                    title: 'ID',
+                    visible: false
+                }],
+            })
+            /////////////////////////////////////////////////////////////////////
+            function AddDatasetURLAlty(value, row, index){
+                return '<a href="{0}">进入</a>'.format(value)
+            }
+            function ConfigDatasetFunctionAlty(value, row, index){
+                if(value == 'support'){
+                    return '<span class="badge">配置</span>'
+                }
+                else{
+                    return '<a href="javascript:void(0)" id="configdataset"><span class="badge btn-blue-to-white">配置</span></a>'
+                }
+            }
+
+            $('#dataset_table').bootstrapTable({
+                url: '/api/dataset_list',
+                method: 'GET',
+                striped: true,
+                pagination: true, //分页
+                pageNumber: 1,//如果设置了分页，首页页码
+                pageSize: 5,//如果设置了分页，页面数据条数
+                pageList: [10, 20, 30, 40],  //如果设置了分页，设置可供选择的页面数据条数。设置为All 则显示所有记录。
+                paginationPreText: '‹',//指定分页条中上一页按钮的图标或文字,这里是<
+                paginationNextText: '›',//指定分页条中下一页按钮的图标或文字,这里是>
+                data_local: "zh-US",//表格汉化
+                sidePagination: "server", //服务端处理分页
+                queryParams: function (params) {//自定义参数，这里的参数是传给后台的，我这是是分页用的
+                    return {//这里的params是table提供的
+                        cp: params.offset,//从数据库第几条记录开始
+                        ps: params.limit//找多少条
+                    };
+                },
+                columns: [{
+                    field: 'INDEX',
+                    title: '索引',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'DATASET',
+                    title: '数据集名称',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'DATASET_DESCRIPTION',
+                    title: '数据集描述',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'HOT',
+                    title: '热度',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'DATASET_URL',
+                    title: '下载页面',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center',
+                    formatter: AddDatasetURLAlty
+                },{
+                    field: 'DATASET_HOWTO',
+                    title: '下载说明',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'STATUS',
+                    title: '状态',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center'
+                },{
+                    field: 'OPERATOR',
+                    title: '配置',
+                    align: 'center',
+                    halign: 'center',
+                    valign: 'center',
+                    events: operateEvents,
+                    formatter: ConfigDatasetFunctionAlty,
+                },{
+                    field: 'ID',
+                    title: 'ID',
+                    visible: false
+                }],
+            })
+
+            /////////////////////////////////////////////////////////////////////
+            $('input[name=stock_status]').each(function(){
+                var switch_obj = $(this);
+                $(this).bootstrapSwitch({
+                    size: "mini",
+                    animate: "true",
+
+                    onSwitchChange: function(event,data){
+                        $.post('/api/update_stock',{
+                            status:data,
+                            stock_id:switch_obj.parent().parent().parent().parent().parent().attr('id'),
+                        },function(data,status){
+                            if(status == 'success'){
+                                switch_obj.bootstrapSwitch('disabled', true, true);
+                            }
+                        })
+                    }})
+            })
+
+            ///////////////////////////////////////////////////////////////////////
+            $('a[name=cancel_order]').each(function(){
+                $(this).on('click', function(){
+                    var order_id = $(this).parent().parent().attr("order_id");
+                    var me = $(this);
+                    $.post('/api/cancel_order', {
+                        'order_id': order_id,
+                    }, function(result, data){
+                        if(data == 'success'){
+                            me.parent().parent().remove();
+                        }
+                        else{
+                            alert('无法取消订单');
+                        }
+                    }).done(function (result) {
+
+                    }).error(function (result) {
+                        var respons = eval('('+result.responseText+')')
+                        alert('无法取消订单')
+                    })
+                })
+            })
+        })
+
+        $(document).ready(function(){
+            $(".dropdown-toggle").dropdown('toggle');
+        });
+    </script>
+</head>
+<body>
+    <div class="banner">
+        <div class="container">
+            <div class="banner-main">
+                <div class="wqdelementEditBox wqdAnimatedos" style="visibility: visible;">
+                    <h2 class="wqd-text-title2" style="text-align: center;">
+                        <font color="#ffffff" style="size: 40px; font-size: 80px">SUBGRADIENT</font>
+                    </h2>
+                </div>
+              <p class="wqd-text-article2" style="text-align: center;"><span>欢迎加入全球共享算力市场</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="container" style="margin-top: 50px">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="panel panel-success">
+                  <div class="panel-heading">
+                    <h3 class="panel-title">资源库存</h3>
+                  </div>
+                  <div class="panel-body">
+                    <div id="stock_resource">
+                        <a href="javascript:void(0)" name="add_stock"><i class="fa fa-plus-circle" aria-hidden="true"></i></a>
+                        <a href="javascript:void(0)" name="del_stock"><i class="fa fa-minus-circle" aria-hidden="true"></i></a>
+
+                        <table class="table table-striped table-center">
+                          <thead>
+                            <tr>
+                                <!--stock index column 1-->
+                                <th>#</th>
+                                <!--stock cpu model-->
+                                <th>CPU个数</th>
+                                <!--stock memory-->
+                                <th>内存(G)</th>
+                                <!--GPU个数-->
+                                <th>GPU个数</th>
+                                <!--GPU显存-->
+                                <th>GPU显存(G)</th>
+                                <!--磁盘大小-->
+                                <th>磁盘大小(G)</th>
+                                <!--费用-->
+                                <th>费用(元)</th>
+                                <!--计费单位-->
+                                <th>计费单位</th>
+                                <!--最短租赁时间-->
+                                <th>最短租赁时间(小时)</th>
+                                <!--最长租赁时间-->
+                                <th>最长租赁时间(小时)</th>
+                                <!--资源状态-->
+                                <th>状态</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {%for stock in stocks%}
+                            <tr id="{{stock.id}}">
+                                <td scope="row">{{stock.index}}</td>
+                                <td>{{stock.cpu_num}}</td>
+                                <td>{{stock.cpu_mem}}</td>
+                                <td>{{stock.gpu_num}}</td>
+                                <td>{{stock.gpu_mem}}</td>
+                                <td>{{stock.disk}}</td>
+                                <td>{{stock.fee}}</td>
+                                {%if stock.charge_unit == "s"%}
+                                <td>秒</td>
+                                {%elif stock.charge_unit == "m"%}
+                                <td>分钟</td>
+                                {%elif stock.charge_unit == "h"%}
+                                <td>小时</td>
+                                {%elif stock.charge_unit == "d"%}
+                                <td>天</td>
+                                {%else%}
+                                <td>周</td>
+                                {%endif%}
+                                <td>{{stock.min_rental_time}}</td>
+                                <td>{{stock.max_rental_time}}</td>
+                                <td>
+                                    {% if stock.status == "waiting on-shelf"%}
+                                    <div class="switch" data-size="mini">
+                                        <input name="stock_status" type="checkbox" checked disabled>
+                                    </div>
+                                    {% elif stock.status == "waiting off-shelf"%}
+                                    <div class="switch" data-size="mini">
+                                        <input name="stock_status" type="checkbox" disabled>
+                                    </div>
+                                    {% elif stock.status == "on-shelf"%}
+                                    <div class="switch" data-size="mini">
+                                        <input name="stock_status" type="checkbox" checked>
+                                    </div>
+                                    {% else%}
+                                    <div class="switch" data-size="mini">
+                                        <input name="stock_status" type="checkbox">
+                                    </div>
+                                    {%endif%}
+                                </td>
+                            </tr>
+                            {%endfor%}
+                          </tbody>
+                        </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel panel-success">
+                  <div class="panel-heading">
+                    <h3 class="panel-title">订单</h3>
+                  </div>
+                  <div class="panel-body">
+                      <div id="processing_orders">
+                    <table class="table table-striped table-center">
+                        <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>创建时间</th>
+                            <th>签约时间</th>
+                            <th>到期时间</th>
+                            <th>CPU个数</th>
+                            <th>内存（G）</th>
+                            <th>GPU个数</th>
+                            <th>GPU显存（G）</th>
+                            <th>解约惩罚（元）</th>
+                            <th>租金单价（元）</th>
+                            <th>计价单位（小时）</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            {%for order in orders%}
+                            <tr order_id="{{order.name}}">
+                                <td>{{order.index}}</td>
+                                <td>{{order.create_time}}</td>
+                                <td>{{order.launch_time}}</td>
+                                <td>{{order.rental_expire_time}}</td>
+                                <td>{{order.cpu_num}}</td>
+                                <td>{{order.cpu_mem}}</td>
+                                <td>{{order.gpu_num}}</td>
+                                <td>{{order.gpu_mem}}</td>
+                                <td>{{order.punish}}</td>
+                                <td>{{order.fee}}</td>
+                                <td>{{order.charge_unit}}</td>
+                                <td>{{order.status}}</td>
+                                {%if order.status == 'waiting'%}
+                                <td><a href="javascript:void(0)" name="cancel_order"><span class="badge btn-blue-to-white">取消</span></a></td>
+                                {%else%}
+                                <td><span class="badge">取消</span></td>
+                                {%endif%}
+                            </tr>
+                            {%endfor%}
+                        </tbody>
+                    </table>
+                </div>
+                  </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+            <div class="panel panel-info">
+              <div class="panel-heading">
+                <h3 class="panel-title">收入</h3>
+              </div>
+              <div class="panel-body">
+                <div class="fa-hover">
+                    <a href="#">
+                        <i class="fa fa-money" aria-hidden="true"></i>
+                        {{money}} （现金）
+                    </a>
+                </div>
+                <div class="fa-hover">
+                    <a href="#">
+                        <i class="fa fa-exchange" aria-hidden="true"></i>
+                        {{frozen_money}} （冻结）
+                    </a>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel panel-info" style="margin-top: 50px">
+              <div class="panel-heading">
+                <h3 class="panel-title">计算资源</h3>
+              </div>
+              <div class="panel-body">
+                <div class="fa-hover">
+                    <a href="#">
+                        <img src="/static/image/cpu.ico">
+                        {{hardware.cpu_num}}
+                    </a>
+                </div>
+                <div class="fa-hover">
+                    <a href="#">
+                        <img src="/static/image/memory.ico">
+                        {{hardware.mem}}（G）
+                    </a>
+                </div>
+                <div class="fa-hover">
+                    <a href="#">
+                        <img src="/static/image/gpu.png">
+                        {{hardware.gpu_num}}
+                    </a>
+                </div>
+                <div class="fa-hover">
+                    <a href="#">
+                        <img src="/static/image/gpu_mem.png">
+                        {{hardware.gpu_mem}}（G）
+                    </a>
+                </div>
+            </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    <div class="container" style="margin-top: 50px">
+        <div class="panel panel-success">
+          <div class="panel-heading">
+            <h3 class="panel-title">镜像仓库</h3>
+          </div>
+          <div class="panel-body">
+              <div id="base_images">
+                  <table id="dockerfile_table"></table>
+              </div>
+              <div>
+                  注：从上面列表中选择本地服务所支持的基础镜像，如果无法良好连接官方docker镜像服务，请配置中国内地的相关镜像
+              </div>
+          </div>
+        </div>
+    </div>
+    <div class="container" style="margin-top: 50px">
+        <div class="panel panel-success">
+          <div class="panel-heading">
+            <h3 class="panel-title">数据集</h3>
+          </div>
+          <div class="panel-body">
+              <div id="dataset">
+                  <table id="dataset_table"></table>
+              </div>
+              <div>
+                  注：从上面的数据集列表中下载数据集，并放入SUBGRADIENT的数据集目录下，为接入的用户提供方便使用。（提前准备好相关数据集可以为你的算力服务提供较好地定价权）
+              </div>
+          </div>
+        </div>
+    </div>
+</body>
+</html>

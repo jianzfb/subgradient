@@ -66,23 +66,27 @@ class CPU(object):
       pipe = subprocess.Popen('/usr/sbin/system_profiler SPHardwareDataType', shell=True, stdout=subprocess.PIPE).stdout
       res = pipe.read()
       terms = res.decode('utf-8').split('\n')
+      cpu_model_name = ''
       for t in terms:
-        if t.startswith('      Processor Name'):
+        if t.strip().startswith('Processor Name'):
           k,v = t.split(':')
-          self._cpu_model_name.append(v.strip())
-        elif t.startswith('      Number of Processors'):
+          cpu_model_name = v.strip()
+        elif t.strip().startswith('Number of Processors'):
           k,v = t.split(':')
           self._cpu_physical_cores = int(v.strip())
-        elif t.startswith('      Total Number of Cores'):
+        elif t.strip().startswith('Total Number of Cores'):
           k,v = t.split(':')
-          self._cpu_logical_cores.append(int(v.strip()))
-        elif t.startswith('      Processor Speed'):
+          self._cpu_logical_cores.extend([int(v.strip()) for _ in range(int(v.strip()))])
+        elif t.strip().startswith('Processor Speed'):
           t,v = t.split(':')
           val,val_unit = v.strip().split(' ')
           if val_unit == 'GHz':
             self._cpu_MHz.append(float(val) * 1000)
           else:
             self._cpu_MHz.append(float(val))
+
+      # update cpu model name
+      self._cpu_model_name = [cpu_model_name for _ in range(len(self._cpu_logical_cores))]
 
   def cpu_physical_cores(self):
     return self._cpu_physical_cores
