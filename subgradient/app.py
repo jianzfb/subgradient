@@ -62,13 +62,14 @@ class Subgradient(Application):
       """
   ).tag(config=True)
 
-  rpc_port = Integer(7080,help="listening rpc",).tag(config=True)
-  web_port = Integer(8000,help="listening http").tag(config=True)
-  ssh_port = Integer(9080, help="listening ssh").tag(config=True)
-  workspace = Unicode('*', help='''subgradient workspace''').tag(config=True)
+  public_ip = Unicode('', help="public network ip address").tag(config=True)
+  rpc_port = Integer(7080,help="listening rpc on this port",).tag(config=True)
+  web_port = Integer(8000,help="listening http on this port").tag(config=True)
+  ssh_port = Integer(9080, help="listening ssh on this port").tag(config=True)
+  workspace = Unicode('', help='''subgradient workspace''').tag(config=True)
   token = Unicode('50b46931-d54c-4d03-8500-fe4ee123c818', help="").tag(config=True)
   support_ipfs = Bool(False, help="is support ipfs").tag(config=True)
-  support_shootback = Bool(True, help="penetrate NAT").tag(config=True)
+  support_shootback = Bool(True, help="is support penetrate NAT").tag(config=True)
 
   classes = List([
     SubgradientServerAPI,
@@ -114,12 +115,8 @@ class Subgradient(Application):
 
     # 0.step load config file
     self.load_config_file(self.config_file)
-    if self.workspace.strip().startswith('*'):
+    if self.workspace == '':
       self.worrkspace = os.environ.get('HOME', None)
-
-    if self.workspace is None:
-      self.log.error('must set subgradient workspace')
-      return
 
     # initialize logging
     self.init_logging()
@@ -170,12 +167,14 @@ class Subgradient(Application):
     self._ctx = Context(schedule=self._subgradient_schedule,
                         image_manage=self._image_manage,
                         db=self._db,
-                        reactor=reactor,
                         workspace=self.workspace,
                         subgradient_server_api=self._subgradient_server_api,
                         subgradient_chain_api=self._subgradient_chain_api,
                         ntp_time=self._ntp_time,
-                        peoridical_calls = self._peoridical_calls)
+                        peoridical_calls = self._peoridical_calls,
+                        public_ip=self.public_ip,
+                        rpc_port=self.rpc_port,
+                        ssh_port=self.ssh_port)
 
     # 5.step register on block chain
     public_key = self._subgradient_chain_api.public_key
@@ -272,7 +271,6 @@ class Subgradient(Application):
     print("Writing default config to: %s" % self.config_file)
     with open(self.config_file, mode='w') as f:
       f.write(config_text)
-
 
   def init_logging(self):
     # This prevents double log messages because tornado use a root logger that

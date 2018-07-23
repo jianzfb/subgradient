@@ -405,11 +405,11 @@ class CtrlPkg:
 
     @classmethod
     def data_decode(cls, ptype, data_raw):
-        return struct.unpack(cls.FORMATS_DATA[ptype], data_raw)
+        return struct.unpack(cls.FORMATS_DATA[ptype].encode('utf-8'), data_raw)
 
     @classmethod
     def data_encode(cls, ptype, data):
-        return struct.pack(cls.FORMATS_DATA[ptype], *data)
+        return struct.pack(cls.FORMATS_DATA[ptype].encode('utf-8'), *data)
 
     def verify(self, pkg_type=None):
         try:
@@ -446,7 +446,11 @@ class CtrlPkg:
             raise ValueError("content size should be {}, but {}".format(
                 cls.PACKAGE_SIZE, len(raw)
             ))
-        pkg_ver, pkg_type, prgm_ver, data_raw = struct.unpack(cls.FORMAT_PKG, raw)
+        try:
+            pkg_ver, pkg_type, prgm_ver, data_raw = struct.unpack(cls.FORMAT_PKG.encode('utf-8'), raw)
+        except:
+            print(traceback.format_exc())
+
         data = cls.data_decode(pkg_type, data_raw)
 
         return cls(

@@ -12,7 +12,7 @@ from traitlets import Unicode
 from traitlets import Integer
 import json
 import time
-
+from subgradient.context import *
 
 class SubgradientChainAPI(LoggingConfigurable):
   server_ip = Unicode('127.0.0.1', help="").tag(config=True)
@@ -79,9 +79,14 @@ class SubgradientChainAPI(LoggingConfigurable):
 
   def rpc_put(self, **kwargs):
     try:
+      ctx = get_global_context()
       request_url = 'http://%s:%d/api/%s' % (self.server_ip, self.server_port, kwargs['action'])
       request_data = kwargs
-      request_data.update({'public_key': self.public_key, 'ip_address': ''})
+      request_data.update({'public_key': self.public_key,
+                           'public_ip': ctx.public_ip,
+                           'rpc_port': ctx.rpc_port,
+                           'ssh_port': ctx.ssh_port})
+
       result = requests.post(request_url, request_data)
 
       if result.status_code == 200 or result.status_code == 201:

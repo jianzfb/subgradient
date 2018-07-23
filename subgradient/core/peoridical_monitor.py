@@ -96,6 +96,11 @@ def monitor_order_status():
                 order.status = 3
                 order.is_notify = True
 
+    if order_content is not None and order_content['status'] == 'fail':
+      # now, we should republish new order
+      order.status = -1
+      order.is_notify = True
+
   ctx.db.commit()
 
   # 4.step check processing order and their running status
@@ -143,6 +148,8 @@ def monitor_order_status():
           order.stock = None
       except:
         logging.error('unkown error when monitor container %s'%order.container_id)
+
+  ctx.db.commit()
 
   # 4.step finding resource occupy
   occupying_resource = {'cpu_num': 0,
@@ -197,10 +204,10 @@ def monitor_order_status():
 
   # 4.step release new orders on chain
   onshelf_stocks = ctx.db.query(orm.Stock).filter(orm.Stock.status == 3).all()
-  base_images = ctx.db.query(orm.ImageRepository).all()
   if len(onshelf_stocks) == 0:
     return
 
+  base_images = ctx.db.query(orm.ImageRepository).all()
   if len(base_images) == 0:
     return
 
