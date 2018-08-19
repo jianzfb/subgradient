@@ -30,6 +30,27 @@ if [ ${os_version} = '' ]; then
 	exit 1
 fi
 
+# 1.1.step check python version (>= 2.7.7)
+V1=2
+V2=7
+V3=7
+
+echo need python version is : $V1.$V2.$V3
+U_V1=`python -V 2>&1|awk '{print $2}'|awk -F '.' '{print $1}'`
+U_V2=`python -V 2>&1|awk '{print $2}'|awk -F '.' '{print $2}'`
+U_V3=`python -V 2>&1|awk '{print $2}'|awk -F '.' '{print $3}'`
+
+echo your python version is : $U_V1.$U_V2.$U_V3
+
+if [ $U_V1 -gt $V1 ];then
+   echo 'python version must be 2.7'
+   exit 1
+elif [ $U_V2 != $V2 ]; then
+   echo 'python version must be 2.7'
+elif [ $U_V3 -lt $V3 ]; then
+   echo 'python version must larger than 2.7.7'
+fi
+
 ## 2.step download and install ipfs
 #if [ ! -d "/usr/local/bin/ipfs" ]; then
 #wget -q https://raw.githubusercontent.com/ipfs/install-go-ipfs/master/install-ipfs.sh

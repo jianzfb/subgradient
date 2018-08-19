@@ -9,7 +9,6 @@ import warnings
 import re
 from datetime import datetime
 import time
-import ntplib
 import logging
 # Token utilities
 import requests
