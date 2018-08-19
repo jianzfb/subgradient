@@ -30,8 +30,6 @@ from datetime import datetime
 from subgradient.utils import *
 import copy
 
-log.startLogging(sys.stderr)
-
 @implementer(checkers.ICredentialsChecker)
 class PublicKeyCredentialsChecker(object):
   credentialInterfaces = (credentials.ISSHPrivateKey,)

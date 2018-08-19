@@ -33,7 +33,6 @@ class SubgradientServerAPI(LoggingConfigurable):
   def __getattr__(self, item):
     # if item not in ['snapshot', 'register', 'bridge']:
     #   raise NotImplementedError
-
     if item.startswith('_'):
       raise NotImplementedError
 

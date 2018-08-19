@@ -17,6 +17,7 @@ from subgradient import orm
 from subgradient.core.container_monitor import *
 from subgradient.core.operation_system import *
 from subgradient.core.peoridical_monitor import *
+from subgradient.core.peoridical_ping import *
 from subgradient.core.schedule import *
 from subgradient.core.image import *
 from subgradient.interface.command import *
@@ -25,6 +26,8 @@ from subgradient.interface.ssh import *
 from subgradient.interface.web import *
 from multiprocessing import Process
 from subgradient.network.lcx.lcx import *
+from twisted.python import log
+from subgradient.subgrad.server.api import *
 
 import logging
 
@@ -121,6 +124,9 @@ class Subgradient(Application):
     # initialize logging
     self.init_logging()
 
+    # initialize ssh environment
+    self.init_ssh_environment()
+
     # 1.step prepare all directorys managed by subgradient
     # workspace
     # dataset
@@ -189,6 +195,9 @@ class Subgradient(Application):
     if result['result'] == 'fail':
       self.log.error('couldnt register on subgradient market')
       return
+
+    # ping server
+    PingMonitor(config=self.config)
 
     # 6.step clear up enviroment (abnormal orders)
     # we dont want any processing orders
@@ -292,6 +301,14 @@ class Subgradient(Application):
 
     # replace python navie logging root
     logging.root = self.log
+
+    # take over twisted log system
+    observer = log.PythonLoggingObserver()
+    observer.start()
+
+  def init_ssh_environment(self):
+    if os.path.exists(os.path.join(os.environ['HOME'], '.ssh', 'known_hosts')):
+      os.remove(os.path.join(os.environ['HOME'], '.ssh', 'known_hosts'))
 
   def cleanup(self):
     # close all processing orders and notify block chain

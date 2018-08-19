@@ -19,6 +19,7 @@ from traitlets.config import LoggingConfigurable
 from traitlets import Integer
 import copy
 
+
 def monitor_order_status():
   # 0.step glocal context (get global varaibles)
   ctx = get_global_context()
@@ -78,13 +79,15 @@ def monitor_order_status():
 
   ctx.db.commit()
 
-  # 3.step check all status == 0 orders from block chain
-  waiting_orders = ctx.db.query(orm.Order).filter(orm.Order.status == 0).all()
+  # 3.step check all status == 0,1,2 orders from block chain
+  waiting_orders = ctx.db.query(orm.Order).filter(or_(orm.Order.status == 0,
+                                                      orm.Order.status == 1,
+                                                      orm.Order.status == 2)).all()
   ntp_now_time = ctx.ntp_time.time()
   for order in waiting_orders:
     order_content = ctx.subgradient_chain_api.get(order_id=order.name)
-    if order_content is not None and order_content['status'] == 'sold':
-        # check whether expire
+    if order_content is not None and order_content['status'] == 'sold' and order.status == 0:
+        # check whether expire (process those orders which has been signed but not login here)
         launch_time = order_content['launch_time']
         rental_time = order_content['rental_time']
         if ntp_now_time is not None:
@@ -99,6 +102,12 @@ def monitor_order_status():
     if order_content is not None and order_content['status'] == 'fail':
       # now, we should republish new order
       order.status = -1
+      order.is_notify = True
+
+    if order_content is not None and order_content['status'] == 'stop':
+      # now, we should republish new order
+      # user could cancel his signed order in 10 minitues
+      order.status = 3
       order.is_notify = True
 
   ctx.db.commit()

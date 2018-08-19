@@ -567,7 +567,7 @@ class AdminPage(Resource):
       hardware_list['gpu_mem'] = []
       hardware_list['gpu_mem_select'] = []
       hardware_list['gpu_num'] = 0
-      hardware_list['gpu_select'] = []
+      hardware_list['gpu_select'] = [0]
       for gpu_i, gpu_model in enumerate([gpu_models[i] for i in gpu_quota]):
         hardware_list['gpu'].append(gpu_model)
         hardware_list['gpu_select'].append(gpu_i + 1)

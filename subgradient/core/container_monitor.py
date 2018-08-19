@@ -5,12 +5,10 @@
 from __future__ import division
 from __future__ import unicode_literals
 from __future__ import print_function
-from traitlets.config import LoggingConfigurable
 import docker
 from subgradient.context import *
 from subgradient import orm
-from subgradient.subgrad.server.api import *
-from subgradient.ntptime.ntptime import *
+from subgradient.subgrad.ntptime.api import *
 from twisted.internet.task import LoopingCall
 from subgradient.utils import *
 import json
@@ -84,7 +82,6 @@ class ContainerMonitor(LoggingConfigurable):
           #   ctx.db.commit()
 
           # gpu status
-
           container_snapshot.append({'order': order.name,
                                      'container': order.container_id,
                                      'memory_usage': memory_usage,

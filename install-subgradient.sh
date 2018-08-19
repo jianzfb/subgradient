@@ -42,17 +42,20 @@ fi
 if [ ${os_version} = 'Ubuntu' ]; then
     sudo apt-get remove docker docker-engine docker.io
     sudo apt-get update
-    sudo apt-get install \
-        linux-image-extra-$(uname -r) \
-        linux-image-extra-virtual
+    sudo apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual
 
     sudo apt-get update
     sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
-
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    sudo apt-get update
+    sudo apt-get install docker-ce
 
 fi
 if [ ${os_version} = 'Centos' ]; then
-    yum -y install docker-io
+    sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+    sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    sudo yum install docker-ce
 fi
 
 # 3.2.step add current user to docker group
