@@ -103,12 +103,16 @@ def monitor_order_status():
       # now, we should republish new order
       order.status = -1
       order.is_notify = True
+      if order.container_id != '':
+        ctx.schedule.subgradient_server.stop(order)
 
     if order_content is not None and order_content['status'] == 'stop':
       # now, we should republish new order
       # user could cancel his signed order in 10 minitues
       order.status = 3
       order.is_notify = True
+      if order.container_id != '':
+        ctx.schedule.subgradient_server.stop(order)
 
   ctx.db.commit()
 
@@ -216,7 +220,7 @@ def monitor_order_status():
   if len(onshelf_stocks) == 0:
     return
 
-  base_images = ctx.db.query(orm.ImageRepository).all()
+  base_images = ctx.db.query(orm.ImageRepository).filter(orm.ImageRepository.status == 'finish').all()
   if len(base_images) == 0:
     return
 

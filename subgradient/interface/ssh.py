@@ -29,6 +29,7 @@ import socket
 from datetime import datetime
 from subgradient.utils import *
 import copy
+import logging
 
 @implementer(checkers.ICredentialsChecker)
 class PublicKeyCredentialsChecker(object):
@@ -45,6 +46,7 @@ class PublicKeyCredentialsChecker(object):
     order_id = credentials.username
     order = self.db.query(orm.Order).filter(orm.Order.name == order_id).one_or_none()
     if order is None:
+      logging.error('order dont exist')
       return failure.Failure(error.ConchError('order dont exist'))
 
     if not credentials.signature:
@@ -70,6 +72,7 @@ class PublicKeyCredentialsChecker(object):
 
       if custom_public_key == '' or order_status != 'sold':
         # system error, return all fee (manage on monitor_order_status())
+        logging.error('order has not been signed')
         order.status = -1
         self.db.commit()
         return failure.Failure(error.ConchError('order has not been signed'))
@@ -77,9 +80,11 @@ class PublicKeyCredentialsChecker(object):
       # rsa verification
       if credentials.blob != base64.decodestring(custom_public_key.split(" ")[1]):
         # user error (RSA fail)
+        logging.error('public key not consistent')
         return failure.Failure(error.ConchError('I dont recognize public key'))
       user_key = keys.Key.fromString(data=custom_public_key)
       if not user_key.verify(credentials.signature, credentials.sigData):
+        logging.error('public key not match')
         return failure.Failure('Incorrect signature')
       is_rsa_verification_ok = True
 
@@ -95,6 +100,7 @@ class PublicKeyCredentialsChecker(object):
                                                                   orm.ImageRepository.support_gpu == support_gpu)).one_or_none()
       if base_image is None:
         # system error, return all fee (manage on monitor_order_status())
+        logging.error('base image dont exist')
         order.status = -1
         self.db.commit()
         return failure.Failure(error.ConchError('base image dont exist'))
@@ -115,9 +121,11 @@ class PublicKeyCredentialsChecker(object):
       self.db.commit()
     else:
       if order.status not in [0, 1, 2]:
+        logging.error('invalid resource order')
         return failure.Failure(error.ConchError('invalid resource order'))
 
       if order.status == 2:
+        logging.info('order is waiting to schedule')
         return failure.Failure(error.ConchError('waiting to schedule'))
 
     # here order.status == 0 or order.status == 1
@@ -129,12 +137,14 @@ class PublicKeyCredentialsChecker(object):
         # expire time
         order.status = 3
         self.db.commit()
+        logging.error('resource order has been expired')
         return failure.Failure(error.ConchError('order server has been stop'))
 
     # 2.step verificatino
     if not is_rsa_verification_ok:
       if credentials.blob != base64.decodestring(order.public_key.split(" ")[1]):
         # user error (RSA fail)
+        logging.error('public key not consistent')
         return failure.Failure(error.ConchError('I dont recognize public key'))
 
       user_key = keys.Key.fromString(data=order.public_key)
@@ -142,7 +152,7 @@ class PublicKeyCredentialsChecker(object):
         return credentials.username
       else:
         # user error (RSA fail)
-        print('signature check failed')
+        logging.error('public key not match')
         return failure.Failure('Incorrect signature')
 
     return credentials.username
@@ -256,19 +266,27 @@ class ProxySSHSession(SSHSessionForUnixConchUser):
 
 
 class ProxySSHFactory(factory.SSHFactory):
-  home_dir = os.environ['HOME']
-  with open(os.path.join(home_dir, '.ssh', 'id_rsa')) as privateBlobFile:
-    privateBlob = privateBlobFile.read()
-    privateKey = keys.Key.fromString(data=privateBlob)
+  def __init__(self, secret):
+    home_dir = os.environ['HOME']
+    if not os.path.exists(os.path.join(home_dir, '.ssh', 'id_rsa')):
+      shutil.copy(os.path.join(self.wallet_secret,'secret.subgrad'),
+                  os.path.join(home_dir, '.ssh', 'id_rsa'))
 
-  with open(os.path.join(home_dir, '.ssh', 'id_rsa.pub')) as publicBlobFile:
-    publicBlob = publicBlobFile.read()
-    publicKey = keys.Key.fromString(data=publicBlob)
+    with open(os.path.join(home_dir, '.ssh', 'id_rsa')) as privateBlobFile:
+      privateBlob = privateBlobFile.read()
+      privateKey = keys.Key.fromString(data=privateBlob)
 
-  publicKeys = {'ssh-rsa': publicKey}
-  privateKeys = {'ssh-rsa': privateKey}
+    if not os.path.exists(os.path.join(home_dir, '.ssh', 'id_rsa.pub')):
+      shutil.copy(os.path.join(self.wallet_secret, 'secret.subgrad.pub'),
+                  os.path.join(home_dir, '.ssh', 'id_rsa.pub'))
 
-  def __init__(self):
+    with open(os.path.join(home_dir, '.ssh', 'id_rsa.pub')) as publicBlobFile:
+      publicBlob = publicBlobFile.read()
+      publicKey = keys.Key.fromString(data=publicBlob)
+
+    self.publicKeys = {'ssh-rsa': publicKey}
+    self.privateKeys = {'ssh-rsa': privateKey}
+
     sw = portal.Portal(ProxySSHRealm())
     components.registerAdapter(ProxySSHSession, ProxySSHUser, session.ISession)
     sw.registerChecker(PublicKeyCredentialsChecker())

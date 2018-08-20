@@ -2,9 +2,6 @@
 # @Time : 29/03/2018
 # @File : setup.py
 # @Author: Jian <jian@mltalker.com>
-from __future__ import division
-from __future__ import unicode_literals
-from __future__ import print_function
 from setuptools import setup, find_packages
 
 setup(
@@ -18,6 +15,7 @@ setup(
   maintainer_email='jian@mltalker.com',
   license='BSD License',
   packages=find_packages(),
+  package_data={'subgradient': ['resource/static/*/*', 'resource/templates/*', 'docker/*/*']},
   platforms=["all"],
   install_requires=[
       'numpy',

@@ -22,13 +22,13 @@ from subgradient.core.schedule import *
 from subgradient.core.image import *
 from subgradient.interface.command import *
 from subgradient.interface.cli import *
-from subgradient.interface.ssh import *
 from subgradient.interface.web import *
+
+from subgradient.interface.ssh import *
 from multiprocessing import Process
 from subgradient.network.lcx.lcx import *
 from twisted.python import log
 from subgradient.subgrad.server.api import *
-
 import logging
 
 aliases = {
@@ -233,7 +233,7 @@ class Subgradient(Application):
     reactor.listenTCP(int(self.web_port), Site(web_handlers()))
 
     # 8.3.step ssh
-    reactor.listenTCP(int(self.ssh_port), ProxySSHFactory())
+    reactor.listenTCP(int(self.ssh_port), ProxySSHFactory(os.path.join(self.workspace,'secret')))
 
     # 8.4.step io
     stdio.StandardIO(CLI())
